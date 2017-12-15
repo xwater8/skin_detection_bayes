@@ -15,16 +15,16 @@ struct pixel_t
 
 struct bayes_t
 {
-	pixel_t mean;
-	pixel_t variance;
+	Vec3f mean;
+	Vec3f variance;
 };
 
 //#define CHECK_AGAIN
 //#define DEBUG_INFO
 void check_img_isPair(vector<String> &img_list, vector<String> &img_mask_list);
 void output_mat_information(Mat &img);
-pair<pixel_t, pixel_t> compute_Color_mean(Mat img, Mat &img_binary_mask, int mask_threshold = 128);
-pair<pixel_t, pixel_t> compute_skin_nonSkinColor_mean(vector<String> &img_list, vector<String> &img_mask_list);
+pair<Vec3f, Vec3f> compute_Color_mean(Mat img, Mat &img_binary_mask, int mask_threshold = 128);
+pair<Vec3f, Vec3f> compute_skin_nonSkinColor_mean(vector<String> &img_list, vector<String> &img_mask_list);
 
 
 
@@ -48,10 +48,12 @@ int main()
 	bayes_t skin_color_bayes, non_skin_color_bayes;
 	
 	/*---統計所有圖片膚色的mean---*/
-	pair<pixel_t, pixel_t> skin_nonSkin_mean_pair = compute_skin_nonSkinColor_mean(img_list, img_mask_list);
+	pair<Vec3f, Vec3f> skin_nonSkin_mean_pair = compute_skin_nonSkinColor_mean(img_list, img_mask_list);
 	skin_color_bayes.mean = skin_nonSkin_mean_pair.first;
 	non_skin_color_bayes.mean = skin_nonSkin_mean_pair.second;
 	
+	cout << skin_color_bayes.mean << endl;
+	cout << non_skin_color_bayes.mean << endl;
 	/*---統計所有圖片膚色的variance---*/
 
 
@@ -85,10 +87,10 @@ void output_mat_information(Mat &img)
 
 
 /*--計算單張圖的膚色非膚色的Mean--*/
-pair<pixel_t, pixel_t> compute_Color_mean(Mat img, Mat &img_binary_mask, int mask_threshold)
+pair<Vec3f, Vec3f> compute_Color_mean(Mat img, Mat &img_binary_mask, int mask_threshold)
 {
-	pixel_t skin_color_mean = { 0.0, 0.0, 0.0 };
-	pixel_t non_skin_color_mean = { 0.0, 0.0, 0.0 };
+	Vec3f skin_color_mean = { 0.0, 0.0, 0.0 };
+	Vec3f non_skin_color_mean = { 0.0, 0.0, 0.0 };
 	int skin_color_pixel_counts = 0;
 	int non_skin_color_pixel_counts = 0;
 	//int mask_threshold = 128;//剛剛check過數值都是255, 保險起見用128
@@ -103,22 +105,25 @@ pair<pixel_t, pixel_t> compute_Color_mean(Mat img, Mat &img_binary_mask, int mas
 
 			mask_color = img_binary_mask.at<uchar>(y, x);
 
-			b = img.at<Vec3b>(y, x)[0];
+			Vec3b color = img.at<Vec3b>(y, x);
+			/*b = img.at<Vec3b>(y, x)[0];
 			g = img.at<Vec3b>(y, x)[1];
-			r = img.at<Vec3b>(y, x)[2];
+			r = img.at<Vec3b>(y, x)[2];*/
 
 			if (mask_color < mask_threshold)//Non-skin color
 			{
-				non_skin_color_mean.b += b;
+				non_skin_color_mean += color;
+				/*non_skin_color_mean.b += b;
 				non_skin_color_mean.g += g;
-				non_skin_color_mean.r += r;
+				non_skin_color_mean.r += r;*/
 				non_skin_color_pixel_counts++;
 			}
 			else
 			{
-				skin_color_mean.b += b;
+				skin_color_mean += color;
+				/*skin_color_mean.b += b;
 				skin_color_mean.g += g;
-				skin_color_mean.r += r;
+				skin_color_mean.r += r;*/
 				skin_color_pixel_counts++;
 			}
 		}
@@ -127,16 +132,18 @@ pair<pixel_t, pixel_t> compute_Color_mean(Mat img, Mat &img_binary_mask, int mas
 	//有些圖片沒有膚色
 	if (skin_color_pixel_counts != 0)
 	{
-		skin_color_mean.b /= float(skin_color_pixel_counts);
+		skin_color_mean /= float(skin_color_pixel_counts);
+		/*skin_color_mean.b /= float(skin_color_pixel_counts);
 		skin_color_mean.g /= float(skin_color_pixel_counts);
-		skin_color_mean.r /= float(skin_color_pixel_counts);
+		skin_color_mean.r /= float(skin_color_pixel_counts);*/
 	}
 
 	if (non_skin_color_pixel_counts != 0)
 	{
-		non_skin_color_mean.b /= float(non_skin_color_pixel_counts);
+		non_skin_color_mean /= float(non_skin_color_pixel_counts);
+		/*non_skin_color_mean.b /= float(non_skin_color_pixel_counts);
 		non_skin_color_mean.g /= float(non_skin_color_pixel_counts);
-		non_skin_color_mean.r /= float(non_skin_color_pixel_counts);
+		non_skin_color_mean.r /= float(non_skin_color_pixel_counts);*/
 	}
 
 #ifdef DEBUG_INFO
@@ -148,20 +155,20 @@ pair<pixel_t, pixel_t> compute_Color_mean(Mat img, Mat &img_binary_mask, int mas
 }
 
 /*---計算所有圖片統計過後的skin_mean, non_skin_mean---*/
-pair<pixel_t, pixel_t> compute_skin_nonSkinColor_mean(vector<String> &img_list, vector<String> &img_mask_list)
+pair<Vec3f, Vec3f> compute_skin_nonSkinColor_mean(vector<String> &img_list, vector<String> &img_mask_list)
 {
-	pixel_t bayes_skin_color_mean = {0.0, 0.0, 0.0};
-	pixel_t bayes_non_skin_color_mean = {0.0, 0.0, 0.0};
-	vector<pair<pixel_t, pixel_t>> img_skin_nonSkinMean_List;
+	Vec3f bayes_skin_color_mean = {0.0, 0.0, 0.0};
+	Vec3f bayes_non_skin_color_mean = {0.0, 0.0, 0.0};
+	vector<pair<Vec3f, Vec3f>> img_skin_nonSkinMean_List;
 	for (int i = 0; i < img_list.size(); i++)
 	{
 		Mat img = imread(img_list[i], CV_LOAD_IMAGE_COLOR);
 		Mat mask = imread(img_mask_list[i], CV_LOAD_IMAGE_GRAYSCALE);
 
-		pair<pixel_t, pixel_t> skin_nonSkinMean_Pair = compute_Color_mean(img, mask);
-		pixel_t skin_color = skin_nonSkinMean_Pair.first;
+		pair<Vec3f, Vec3f> skin_nonSkinMean_Pair = compute_Color_mean(img, mask);
+		Vec3f skin_color = skin_nonSkinMean_Pair.first;
 
-		if (skin_color.b == 0 && skin_color.g == 0 && skin_color.r == 0)
+		if (skin_color[0] == 0 && skin_color[1] == 0 && skin_color[2] == 0)
 		{
 			cout << "This images doesn't contain any skin_color" << endl;
 			cout << img_list[i] << endl;
@@ -173,27 +180,31 @@ pair<pixel_t, pixel_t> compute_skin_nonSkinColor_mean(vector<String> &img_list, 
 
 	for (int i = 0; i < img_skin_nonSkinMean_List.size(); i++)
 	{
-		pair<pixel_t, pixel_t> one_pair = img_skin_nonSkinMean_List[i];
-		pixel_t skin_color_mean = one_pair.first;
-		pixel_t non_skin_color_mean = one_pair.second;
+		pair<Vec3f, Vec3f> one_pair = img_skin_nonSkinMean_List[i];
+		Vec3f skin_color_mean = one_pair.first;
+		Vec3f non_skin_color_mean = one_pair.second;
 
-		bayes_skin_color_mean.b += skin_color_mean.b;
+		bayes_skin_color_mean += skin_color_mean;
+		/*bayes_skin_color_mean.b += skin_color_mean.b;
 		bayes_skin_color_mean.g += skin_color_mean.g;
-		bayes_skin_color_mean.r += skin_color_mean.r;
+		bayes_skin_color_mean.r += skin_color_mean.r;*/
 
-		bayes_non_skin_color_mean.b += non_skin_color_mean.b;
+		bayes_non_skin_color_mean += non_skin_color_mean;
+		/*bayes_non_skin_color_mean.b += non_skin_color_mean.b;
 		bayes_non_skin_color_mean.g += non_skin_color_mean.g;
-		bayes_non_skin_color_mean.r += non_skin_color_mean.r;
+		bayes_non_skin_color_mean.r += non_skin_color_mean.r;*/
 	}
 
 	int img_counts = img_skin_nonSkinMean_List.size();
-	bayes_skin_color_mean.b /= (float)img_counts;
+	bayes_skin_color_mean /= (float)img_counts;
+	/*bayes_skin_color_mean.b /= (float)img_counts;
 	bayes_skin_color_mean.g /= (float)img_counts;
-	bayes_skin_color_mean.r /= (float)img_counts;
+	bayes_skin_color_mean.r /= (float)img_counts;*/
 
-	bayes_non_skin_color_mean.b /= (float)img_counts;
-	bayes_non_skin_color_mean.g /= (float)img_counts;
-	bayes_non_skin_color_mean.r /= (float)img_counts;
+	bayes_non_skin_color_mean /= (float)img_counts;
+	//bayes_non_skin_color_mean.b /= (float)img_counts;
+	//bayes_non_skin_color_mean.g /= (float)img_counts;
+	//bayes_non_skin_color_mean.r /= (float)img_counts;
 
 	return make_pair(bayes_skin_color_mean, bayes_non_skin_color_mean);
 }
