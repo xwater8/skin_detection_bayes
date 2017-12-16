@@ -7,7 +7,7 @@ using namespace cv;
 
 #include<algorithm>
 #include<vector>
-
+#include<cmath>
 struct bayes_t
 {
 	Vec3f mean;
@@ -50,6 +50,39 @@ int main()
 	cout << skin_color_bayes.mean << endl;
 	cout << non_skin_color_bayes.mean << endl;
 	/*---統計所有圖片膚色的variance---*/
+
+	cout <<"skin_mean: " << skin_color_bayes.mean / 255.0 << endl;
+	cout <<"non_skin_mean: "<< non_skin_color_bayes.mean / 255.0 << endl;
+
+
+	/*---計算Variance---*/
+	Vec3f skin_variance = { 0.0, 0.0, 0.0 };
+	Vec3f non_skin_variance = { 0.0, 0.0, 0.0 };
+
+	Vec3f skin_color_mean = skin_color_bayes.mean;
+	Vec3f non_skin_color_mean = non_skin_color_bayes.mean;
+
+	for (int i = 0; i < img_list.size(); i++)
+	{
+		Mat img = imread(img_list[i], CV_LOAD_IMAGE_COLOR);
+		Mat img_mask = imread(img_mask_list[i], CV_LOAD_IMAGE_GRAYSCALE);
+
+		for (int y = 0; y < img_mask.rows; y++)
+		{
+			for (int x = 0; x < img_mask.cols; x++)
+			{
+				int mask_color = img_mask.at<uchar>(y, x);
+				Vec3f color = img.at<Vec3b>(y, x);
+				
+				if (mask_color < 125)//non_skin
+				{
+					non_skin_variance += (color - non_skin_color_mean);
+				}
+
+			}
+		}
+
+	}
 
 
 
