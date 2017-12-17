@@ -14,6 +14,8 @@ struct bayes_t
 	Vec3f variance;
 };
 
+#define USE_YCRCB
+
 //#define CHECK_AGAIN
 //#define DEBUG_INFO
 void check_img_isPair(vector<String> &img_list, vector<String> &img_mask_list);
@@ -24,6 +26,75 @@ Vec3f Vec3f_variance(Vec3f &Xi, Vec3f &mean);
 pair<Vec3f, Vec3f> compute_Color_Variance(Mat img, Mat &img_binary_mask, Vec3f &skin_color_mean, Vec3f &non_skin_color_mean, int mask_threshold);
 pair<Vec3f, Vec3f> compute_skin_nonSkinColor_Variance(vector<String> &img_list, vector<String> &img_mask_list, Vec3f &skin_color_mean, Vec3f &non_skin_color_mean);
 
+double normal_distribution(double value, double u, double variance);
+double color_normal_distribution(Vec3b &color, Vec3f &mean, Vec3f &variance);
+bool isSkin(Vec3b &color, bayes_t &skin_color_bayes, bayes_t &non_skin_color_bayes);
+
+double normal_distribution(double value, double u, double variance)
+{
+	double pi = 3.14;
+	double stand_deviation = sqrt(variance);
+	double denominator = 1 / (stand_deviation * sqrt(2 * pi));
+	double in_exp_pow = -1 * pow(value-u, 2) / (2 * variance);
+	double numerator = exp(in_exp_pow);
+
+	return numerator * denominator;
+}
+
+double color_normal_distribution(Vec3b &color, Vec3f &mean, Vec3f &variance)
+{
+	double probability = 1.0;
+	for (int i = 0; i < 3; i++)
+	{
+		probability *= normal_distribution(color[i], mean[i], variance[i]);
+	}
+
+	return probability;
+}
+
+bool isSkin(Vec3b &color, bayes_t &skin_color_bayes, bayes_t &non_skin_color_bayes)
+{
+	double skin_probability = color_normal_distribution(color, skin_color_bayes.mean, skin_color_bayes.variance);
+	double non_skin_probability = color_normal_distribution(color, non_skin_color_bayes.mean, non_skin_color_bayes.variance);
+
+	if (skin_probability >= non_skin_probability)
+	{
+		return true;
+	}
+
+	return false;
+}
+
+
+void img_skin_detection(Mat &img, bayes_t &skin_color_bayes, bayes_t &non_skin_color_bayes)
+{
+	Mat result_img = img.clone();
+	Vec3b black(0, 0, 0);
+
+#ifdef USE_YCRCB
+	cvtColor(img, img, CV_BGR2YCrCb);
+#endif
+
+	for (int y = 0; y < img.rows; y++)
+	{
+		for (int x = 0; x < img.cols; x++)
+		{
+			Vec3b color = img.at<Vec3b>(y, x);
+
+			//非skin的pixle變成黑色
+			if (isSkin(color, skin_color_bayes, non_skin_color_bayes) == false)
+			{
+				result_img.at<Vec3b>(y,x) = black;
+			}
+
+		}
+	}
+
+	imshow("Skin_detection_Results", result_img);
+	waitKey();
+
+	return;
+}
 
 
 int main()
@@ -35,6 +106,7 @@ int main()
 
 	glob(img_path, img_list, false);
 	glob(img_mask_path, img_mask_list, false);
+
 
 #ifdef CHECK_AGAIN
 	//Check our image can compare to its mask
@@ -54,8 +126,28 @@ int main()
 	non_skin_color_bayes.variance = skin_nonSkin_Variance_pair.second;
 
 
+	/*---Start to Test---*/
+	string test_path = "testImage";
+	vector<String> test_img_list;
+	glob(test_path, test_img_list);
 
+	for (int i = 0; i < test_img_list.size(); i++)
+	{
+		Mat img = imread(test_img_list[i], CV_LOAD_IMAGE_COLOR);
+		if (img.empty() == true)
+		{
+			cout << "Can't open the img: " << img_list[i] << endl;
+			continue;
+		}
 
+		img_skin_detection(img, skin_color_bayes, non_skin_color_bayes);
+	}
+
+	//Released memory
+
+	img_list.clear();
+	img_mask_list.clear();
+	test_img_list.clear();
 
 	return 0;
 }
@@ -150,6 +242,10 @@ pair<Vec3f, Vec3f> compute_skin_nonSkinColor_mean(vector<String> &img_list, vect
 		Mat img = imread(img_list[i], CV_LOAD_IMAGE_COLOR);
 		Mat mask = imread(img_mask_list[i], CV_LOAD_IMAGE_GRAYSCALE);
 
+		//ycrcb
+#ifdef USE_YCRCB
+		cvtColor(img, img, CV_BGR2YCrCb);
+#endif
 		pair<Vec3f, Vec3f> skin_nonSkinMean_Pair = compute_Color_mean(img, mask);
 		Vec3f skin_color = skin_nonSkinMean_Pair.first;
 
@@ -253,7 +349,9 @@ pair<Vec3f, Vec3f> compute_skin_nonSkinColor_Variance(vector<String> &img_list, 
 		Mat img = imread(img_list[i], CV_LOAD_IMAGE_COLOR);
 		Mat img_mask = imread(img_mask_list[i], CV_LOAD_IMAGE_GRAYSCALE);
 
-
+#ifdef USE_YCRCB
+		cvtColor(img, img, CV_BGR2YCrCb);
+#endif
 		if (img.empty() == true)
 		{
 			cout << "Can't open the img: " << img_list[i] << endl;
