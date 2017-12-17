@@ -66,7 +66,7 @@ bool isSkin(Vec3b &color, bayes_t &skin_color_bayes, bayes_t &non_skin_color_bay
 }
 
 
-void img_skin_detection(Mat &img, bayes_t &skin_color_bayes, bayes_t &non_skin_color_bayes)
+Mat img_skin_detection(Mat &img, bayes_t &skin_color_bayes, bayes_t &non_skin_color_bayes)
 {
 	Mat result_img = img.clone();
 	Vec3b black(0, 0, 0);
@@ -90,10 +90,10 @@ void img_skin_detection(Mat &img, bayes_t &skin_color_bayes, bayes_t &non_skin_c
 		}
 	}
 
-	imshow("Skin_detection_Results", result_img);
-	waitKey();
+	//imshow("Skin_detection_Results", result_img);
+	//waitKey();
 
-	return;
+	return result_img;
 }
 
 
@@ -134,13 +134,19 @@ int main()
 	for (int i = 0; i < test_img_list.size(); i++)
 	{
 		Mat img = imread(test_img_list[i], CV_LOAD_IMAGE_COLOR);
+		Mat skin_detect_img;
+		char output_fileName[100];
+		sprintf(output_fileName, "output_%d.jpg", i);
 		if (img.empty() == true)
 		{
 			cout << "Can't open the img: " << img_list[i] << endl;
 			continue;
 		}
 
-		img_skin_detection(img, skin_color_bayes, non_skin_color_bayes);
+		skin_detect_img = img_skin_detection(img, skin_color_bayes, non_skin_color_bayes);
+		imshow("skin_detection", skin_detect_img);
+		waitKey(10);
+		imwrite(string(output_fileName), skin_detect_img);
 	}
 
 	//Released memory
