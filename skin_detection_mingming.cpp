@@ -145,7 +145,7 @@ int main()
 
 		skin_detect_img = img_skin_detection(img, skin_color_bayes, non_skin_color_bayes);
 		imshow("skin_detection", skin_detect_img);
-		waitKey(10);
+		waitKey();
 		imwrite(string(output_fileName), skin_detect_img);
 	}
 
